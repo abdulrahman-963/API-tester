@@ -2,18 +2,14 @@ package com.apimonitor.model;
 
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.time.Instant;
-import java.util.UUID;
 
 @Entity
 @Table(name = "api_endpoints")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class ApiEndpoint {
+public class ApiEndpoint extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -31,16 +27,16 @@ public class ApiEndpoint {
     private HttpMethod method = HttpMethod.GET;
 
     /** Interval in minutes: 1, 5, or 10 */
-    @Column(nullable = false)
+    @Column(name = "check_Interval_Minutes", nullable = false)
     @Builder.Default
     private int checkIntervalMinutes = 5;
 
-    @Column(nullable = false)
+    @Column(name="expected_Status", nullable = false)
     @Builder.Default
     private int expectedStatus = 200;
 
     /** Timeout in milliseconds */
-    @Column(nullable = false)
+    @Column(name="timeout_Ms", nullable = false)
     @Builder.Default
     private int timeoutMs = 5000;
 
@@ -49,32 +45,20 @@ public class ApiEndpoint {
     private boolean active = true;
 
     /** Optional request body (JSON string) for POST/PUT checks */
-    @Column(columnDefinition = "TEXT")
+    @Column(name="request_Body", columnDefinition = "TEXT")
     private String requestBody;
 
     /** Optional custom headers (JSON string) */
-    @Column(columnDefinition = "TEXT")
+    @Column(name="request_Headers", columnDefinition = "TEXT")
     private String requestHeaders;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 10)
+    @Column(name="last_Status", nullable = false, length = 10)
     @Builder.Default
     private EndpointStatus lastStatus = EndpointStatus.UNKNOWN;
 
+    @Column(name="last_Checked_At")
     private Instant lastCheckedAt;
-
-    @Column(nullable = false, updatable = false)
-    @Builder.Default
-    private Instant createdAt = Instant.now();
-
-    @Column(nullable = false)
-    @Builder.Default
-    private Instant updatedAt = Instant.now();
-
-    @PreUpdate
-    void onUpdate() {
-        this.updatedAt = Instant.now();
-    }
 
     public enum HttpMethod {
         GET, POST, PUT, DELETE, PATCH, HEAD

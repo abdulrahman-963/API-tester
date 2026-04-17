@@ -12,7 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import org.springframework.data.domain.Page;
+
 import java.util.UUID;
 
 @RestController
@@ -23,8 +24,12 @@ public class EndpointController {
     private final EndpointService endpointService;
 
     @GetMapping
-    public ResponseEntity<List<EndpointResponse>> list(@AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(endpointService.listEndpoints(user));
+    public ResponseEntity<Page<EndpointResponse>> list(
+        @AuthenticationPrincipal User user,
+        @RequestParam(defaultValue = "0")  int page,
+        @RequestParam(defaultValue = "10") int size
+    ) {
+        return ResponseEntity.ok(endpointService.listEndpoints(user, page, size));
     }
 
     @GetMapping("/{id}")

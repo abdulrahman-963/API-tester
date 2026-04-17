@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom'
 import { Shield, TrendingUp, Bell, Zap, CheckCircle, ArrowRight, Activity } from 'lucide-react'
+import keycloak from '../keycloak'
 
 const FEATURES = [
   {
@@ -68,8 +68,8 @@ export default function Landing() {
           </div>
           <div className="flex items-center gap-4">
             <a href="#pricing" className="text-sm text-gray-600 hover:text-gray-900">Pricing</a>
-            <Link to="/login" className="text-sm text-gray-600 hover:text-gray-900">Login</Link>
-            <Link to="/register" className="btn-primary text-sm">Get Started Free</Link>
+            <button onClick={() => keycloak.login({ redirectUri: window.location.origin + '/dashboard' })} className="text-sm text-gray-600 hover:text-gray-900">Login</button>
+            <button onClick={() => keycloak.register({ redirectUri: window.location.origin + '/dashboard' })} className="btn-primary text-sm">Get Started Free</button>
           </div>
         </div>
       </nav>
@@ -88,12 +88,12 @@ export default function Landing() {
           APIMonitor watches your critical APIs 24/7 — payments, checkout, authentication — and alerts you the instant something breaks, before your customers feel it.
         </p>
         <div className="flex items-center justify-center gap-4 flex-wrap">
-          <Link to="/register" className="btn-primary px-6 py-3 text-base">
+          <button onClick={() => keycloak.register({ redirectUri: window.location.origin + '/dashboard' })} className="btn-primary px-6 py-3 text-base">
             Start Monitoring Free <ArrowRight className="w-4 h-4" />
-          </Link>
-          <Link to="/login" className="btn-secondary px-6 py-3 text-base">
+          </button>
+          <button onClick={() => keycloak.login({ redirectUri: window.location.origin + '/dashboard' })} className="btn-secondary px-6 py-3 text-base">
             View Dashboard
-          </Link>
+          </button>
         </div>
         <p className="text-sm text-gray-400 mt-4">No credit card required · 5 endpoints free forever</p>
       </section>
@@ -165,12 +165,12 @@ export default function Landing() {
                     </li>
                   ))}
                 </ul>
-                <Link
-                  to="/register"
+                <button
+                  onClick={() => keycloak.register({ redirectUri: window.location.origin + '/dashboard' })}
                   className={plan.highlight ? 'btn-primary w-full justify-center' : 'btn-secondary w-full justify-center'}
                 >
                   {plan.cta}
-                </Link>
+                </button>
               </div>
             ))}
           </div>
@@ -185,9 +185,9 @@ export default function Landing() {
         <p className="text-gray-500 mb-8">
           Join businesses that trust APIMonitor to keep their critical APIs running.
         </p>
-        <Link to="/register" className="btn-primary px-8 py-3 text-base">
+        <button onClick={() => keycloak.register({ redirectUri: window.location.origin + '/dashboard' })} className="btn-primary px-8 py-3 text-base">
           Get Started Free — No Card Required
-        </Link>
+        </button>
       </section>
 
       {/* Footer */}

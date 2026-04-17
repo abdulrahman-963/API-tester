@@ -1,6 +1,7 @@
--- ============================================================
--- APIMonitor Database Schema — V1 Initial Setup
--- ============================================================
+--liquibase formatted sql
+
+--changeset apimonitor:001-init-schema dbms:postgresql
+--comment: APIMonitor initial database schema
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
@@ -51,6 +52,8 @@ CREATE TABLE monitoring_results (
     response_body_preview TEXT,
     on_demand             BOOLEAN      NOT NULL DEFAULT FALSE,
     checked_at            TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    created_at              TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_monitoring_endpoint_checked ON monitoring_results (endpoint_id, checked_at DESC);
@@ -64,6 +67,7 @@ CREATE TABLE alert_rules (
     destination VARCHAR(500) NOT NULL,
     active      BOOLEAN     NOT NULL DEFAULT TRUE,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_alert_rules_endpoint ON alert_rules (endpoint_id);
@@ -77,6 +81,15 @@ CREATE TABLE alert_history (
     sent_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     message     TEXT,
     success     BOOLEAN     NOT NULL DEFAULT TRUE
+    created_at              TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_alert_history_endpoint ON alert_history (endpoint_id, sent_at DESC);
+
+rollback DROP TABLE alert_history;
+rollback DROP TABLE alert_rules;
+rollback DROP TABLE monitoring_results;
+rollback DROP TABLE api_endpoints;
+rollback DROP TABLE users;
+--rollback DROP EXTENSION IF EXISTS "pgcrypto";

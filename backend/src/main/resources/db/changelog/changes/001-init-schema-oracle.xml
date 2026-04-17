@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="001-init-schema" author="apimonitor" dbms="oracle">
+        <comment>APIMonitor initial database schema</comment>
+
+        <!-- Users -->
+        <createTable tableName="users">
+            <column name="id" type="CHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="email" type="VARCHAR2(255)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_users_email"/>
+            </column>
+            <column name="full_name" type="VARCHAR2(150)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="plan" type="VARCHAR2(20)" defaultValue="FREE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="active" type="NUMBER(1,0)" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="keycloak_id" type="VARCHAR2(36)"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <sql>ALTER TABLE users ADD CONSTRAINT chk_users_plan CHECK (plan IN ('FREE', 'PRO', 'ENTERPRISE'))</sql>
+        <sql>ALTER TABLE users ADD CONSTRAINT chk_users_active CHECK (active IN (0,1))</sql>
+
+        <!--  <createIndex indexName="idx_users_email" tableName="users">
+            <column name="email"/>
+        </createIndex>
+                <createIndex indexName="idx_users_keycloak_id" tableName="users">
+            <column name="keycloak_id"/>
+        </createIndex>
+
+        -->
+        <addUniqueConstraint
+                tableName="users"
+                columnNames="keycloak_id"
+                constraintName="uq_users_keycloak_id"/>
+
+
+
+        <!-- API Endpoints -->
+        <createTable tableName="api_endpoints">
+            <column name="id" type="CHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="CHAR(36)">
+                <constraints nullable="false"
+                             foreignKeyName="fk_endpoints_user"
+                             references="users(id)"
+                             deleteCascade="true"/>
+            </column>
+            <column name="name" type="VARCHAR2(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="url" type="VARCHAR2(2048)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="method" type="VARCHAR2(10)" defaultValue="GET">
+                <constraints nullable="false"/>
+            </column>
+            <column name="check_interval_minutes" type="INTEGER" defaultValueNumeric="5">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expected_status" type="INTEGER" defaultValueNumeric="200">
+                <constraints nullable="false"/>
+            </column>
+            <column name="timeout_ms" type="INTEGER" defaultValueNumeric="5000">
+                <constraints nullable="false"/>
+            </column>
+            <column name="active" type="NUMBER(1,0)" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="request_body" type="CLOB"/>
+            <column name="request_headers" type="CLOB"/>
+            <column name="last_status" type="VARCHAR2(10)" defaultValue="UNKNOWN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_checked_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <sql>ALTER TABLE api_endpoints ADD CONSTRAINT chk_endpoints_method CHECK (method IN ('GET','POST','PUT','DELETE','PATCH','HEAD'))</sql>
+        <sql>ALTER TABLE api_endpoints ADD CONSTRAINT chk_endpoints_active CHECK (active IN (0,1))</sql>
+        <sql>ALTER TABLE api_endpoints ADD CONSTRAINT chk_endpoints_last_status CHECK (last_status IN ('UP','DOWN','UNKNOWN'))</sql>
+
+        <createIndex indexName="idx_endpoints_user_id" tableName="api_endpoints">
+            <column name="user_id"/>
+        </createIndex>
+        <createIndex indexName="idx_endpoints_active" tableName="api_endpoints">
+            <column name="active"/>
+        </createIndex>
+
+        <!-- Monitoring Results -->
+        <createTable tableName="monitoring_results">
+            <column name="id" type="CHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="endpoint_id" type="CHAR(36)">
+                <constraints nullable="false"
+                             foreignKeyName="fk_monitoring_endpoint"
+                             references="api_endpoints(id)"
+                             deleteCascade="true"/>
+            </column>
+            <column name="status" type="VARCHAR2(10)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status_code" type="INTEGER"/>
+            <column name="response_time_ms" type="NUMBER(19,0)"/>
+            <column name="error_message" type="CLOB"/>
+            <column name="response_body_preview" type="CLOB"/>
+            <column name="on_demand" type="NUMBER(1,0)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="checked_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <sql>ALTER TABLE monitoring_results ADD CONSTRAINT chk_monitoring_status CHECK (status IN ('UP','DOWN'))</sql>
+        <sql>ALTER TABLE monitoring_results ADD CONSTRAINT chk_monitoring_on_demand CHECK (on_demand IN (0,1))</sql>
+
+        <createIndex indexName="idx_monitoring_endpoint_checked" tableName="monitoring_results">
+            <column name="endpoint_id"/>
+            <column name="checked_at" descending="true"/>
+        </createIndex>
+        <createIndex indexName="idx_monitoring_on_demand" tableName="monitoring_results">
+            <column name="endpoint_id"/>
+            <column name="on_demand"/>
+        </createIndex>
+
+        <!-- Alert Rules -->
+        <createTable tableName="alert_rules">
+            <column name="id" type="CHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="endpoint_id" type="CHAR(36)">
+                <constraints nullable="false"
+                             foreignKeyName="fk_alert_rules_endpoint"
+                             references="api_endpoints(id)"
+                             deleteCascade="true"/>
+            </column>
+            <column name="alert_type" type="VARCHAR2(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="destination" type="VARCHAR2(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="active" type="NUMBER(1,0)" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <sql>ALTER TABLE alert_rules ADD CONSTRAINT chk_alert_rules_type CHECK (alert_type IN ('EMAIL', 'WEBHOOK'))</sql>
+        <sql>ALTER TABLE alert_rules ADD CONSTRAINT chk_alert_rules_active CHECK (active IN (0,1))</sql>
+
+        <createIndex indexName="idx_alert_rules_endpoint" tableName="alert_rules">
+            <column name="endpoint_id"/>
+        </createIndex>
+
+        <!-- Alert History -->
+        <createTable tableName="alert_history">
+            <column name="id" type="CHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="endpoint_id" type="CHAR(36)">
+                <constraints nullable="false"
+                             foreignKeyName="fk_alert_history_endpoint"
+                             references="api_endpoints(id)"
+                             deleteCascade="true"/>
+            </column>
+            <column name="alert_type" type="VARCHAR2(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="destination" type="VARCHAR2(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sent_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="message" type="CLOB"/>
+            <column name="success" type="NUMBER(1,0)" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <sql>ALTER TABLE alert_history ADD CONSTRAINT chk_alert_history_success CHECK (success IN (0,1))</sql>
+
+        <createIndex indexName="idx_alert_history_endpoint" tableName="alert_history">
+            <column name="endpoint_id"/>
+            <column name="sent_at" descending="true"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="alert_history"/>
+            <dropTable tableName="alert_rules"/>
+            <dropTable tableName="monitoring_results"/>
+            <dropTable tableName="api_endpoints"/>
+            <dropTable tableName="users"/>
+        </rollback>
+
+    </changeSet>
+
+</databaseChangeLog>

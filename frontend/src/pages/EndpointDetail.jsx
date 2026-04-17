@@ -8,34 +8,51 @@ import {
   ArrowLeft, Zap, Loader2, Bell, BellOff, Trash2, Plus,
   CheckCircle, XCircle, Clock, TrendingUp, Activity
 } from 'lucide-react'
-import { format, formatDistanceToNow } from 'date-fns'
+import { formatDistanceToNow } from 'date-fns'
+
+const HIST_PAGE_SIZE = 10
 
 export default function EndpointDetail() {
-  const { id }     = useParams()
-  const navigate   = useNavigate()
+  const { id } = useParams()
+  const navigate = useNavigate()
 
-  const [endpoint, setEndpoint]   = useState(null)
-  const [stats, setStats]         = useState(null)
-  const [history, setHistory]     = useState({ content: [], totalElements: 0 })
-  const [alerts, setAlerts]       = useState([])
-  const [loading, setLoading]     = useState(true)
-  const [testing, setTesting]     = useState(false)
-  const [testResult, setTestResult] = useState(null)
-  const [alertForm, setAlertForm] = useState({ alertType: 'EMAIL', destination: '' })
+  const [endpoint, setEndpoint]       = useState(null)
+  const [stats, setStats]             = useState(null)
+  const [history, setHistory]         = useState({ content: [], totalElements: 0, totalPages: 0 })
+  const [histPage, setHistPage]       = useState(0)
+  const [histLoading, setHistLoading] = useState(false)
+  const [alerts, setAlerts]           = useState([])
+  const [loading, setLoading]         = useState(true)
+  const [testing, setTesting]         = useState(false)
+  const [testResult, setTestResult]   = useState(null)
+  const [alertForm, setAlertForm]     = useState({ alertType: 'EMAIL', destination: '' })
   const [addingAlert, setAddingAlert] = useState(false)
-  const [page, setPage]           = useState(0)
+
+  const loadHistory = useCallback(async (pageNum) => {
+    setHistLoading(true)
+    try {
+      const res = await monitoringApi.history(id, pageNum, HIST_PAGE_SIZE)
+      setHistory(res.data)
+      setHistPage(pageNum)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setHistLoading(false)
+    }
+  }, [id])
 
   const load = useCallback(async () => {
     try {
       const [epRes, statsRes, histRes, alertsRes] = await Promise.all([
         endpointApi.get(id),
         monitoringApi.stats(id, 24),
-        monitoringApi.history(id, 0, 20),
+        monitoringApi.history(id, 0, HIST_PAGE_SIZE),
         alertApi.list(id),
       ])
       setEndpoint(epRes.data)
       setStats(statsRes.data)
       setHistory(histRes.data)
+      setHistPage(0)              // always reset to page 0 on full reload
       setAlerts(alertsRes.data)
     } catch (e) {
       console.error(e)
@@ -45,16 +62,6 @@ export default function EndpointDetail() {
   }, [id])
 
   useEffect(() => { load() }, [load])
-
-  async function loadMoreHistory() {
-    const nextPage = page + 1
-    const res = await monitoringApi.history(id, nextPage, 20)
-    setHistory(prev => ({
-      ...res.data,
-      content: [...prev.content, ...res.data.content]
-    }))
-    setPage(nextPage)
-  }
 
   async function runTest() {
     setTesting(true)
@@ -271,9 +278,13 @@ export default function EndpointDetail() {
 
       {/* History Table */}
       <div className="card">
-        <div className="px-6 py-4 border-b border-gray-100">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <h3 className="font-semibold text-gray-900">Check History</h3>
+          {history.totalElements > 0 && (
+            <span className="text-xs text-gray-400">{history.totalElements} total checks</span>
+          )}
         </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
@@ -287,36 +298,91 @@ export default function EndpointDetail() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {history.content.map(r => (
-                <tr key={r.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-3">
-                    <StatusBadge status={r.status} small />
-                  </td>
-                  <td className="px-6 py-3 font-mono text-gray-700">{r.statusCode ?? '—'}</td>
-                  <td className="px-6 py-3 text-gray-700">
-                    {r.responseTimeMs != null ? `${r.responseTimeMs}ms` : '—'}
-                  </td>
-                  <td className="px-6 py-3">
-                    {r.onDemand
-                      ? <span className="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full">Manual</span>
-                      : <span className="text-xs text-gray-400">Scheduled</span>
-                    }
-                  </td>
-                  <td className="px-6 py-3 text-gray-500 whitespace-nowrap">
-                    {formatDistanceToNow(new Date(r.checkedAt), { addSuffix: true })}
-                  </td>
-                  <td className="px-6 py-3 text-red-500 text-xs max-w-xs truncate">
-                    {r.errorMessage ?? '—'}
+              {histLoading ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-gray-400">
+                    <Loader2 className="w-5 h-5 animate-spin inline-block" />
                   </td>
                 </tr>
-              ))}
+              ) : history.content.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-gray-400 text-sm">
+                    No check history yet.
+                  </td>
+                </tr>
+              ) : (
+                history.content.map(r => (
+                  <tr key={r.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-3"><StatusBadge status={r.status} small /></td>
+                    <td className="px-6 py-3 font-mono text-gray-700">{r.statusCode ?? '—'}</td>
+                    <td className="px-6 py-3 text-gray-700">
+                      {r.responseTimeMs != null ? `${r.responseTimeMs}ms` : '—'}
+                    </td>
+                    <td className="px-6 py-3">
+                      {r.onDemand
+                        ? <span className="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full">Manual</span>
+                        : <span className="text-xs text-gray-400">Scheduled</span>
+                      }
+                    </td>
+                    <td className="px-6 py-3 text-gray-500 whitespace-nowrap">
+                      {formatDistanceToNow(new Date(r.checkedAt), { addSuffix: true })}
+                    </td>
+                    <td className="px-6 py-3 text-red-500 text-xs max-w-xs truncate">
+                      {r.errorMessage ?? '—'}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
-        {history.content.length < history.totalElements && (
-          <div className="px-6 py-4 border-t border-gray-100 text-center">
-            <button onClick={loadMoreHistory} className="btn-secondary text-sm">
-              Load more
+
+        {/* Pagination controls */}
+        {history.totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+            <button
+              onClick={() => loadHistory(histPage - 1)}
+              disabled={histPage === 0 || histLoading}
+              className="btn-secondary text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              ← Previous
+            </button>
+
+            <div className="flex items-center gap-1">
+              {Array.from({ length: history.totalPages }, (_, i) => i)
+                .filter(i => i === 0 || i === history.totalPages - 1 || Math.abs(i - histPage) <= 1)
+                .reduce((acc, i, idx, arr) => {
+                  if (idx > 0 && i - arr[idx - 1] > 1) acc.push('…')
+                  acc.push(i)
+                  return acc
+                }, [])
+                .map((item, idx) =>
+                  item === '…' ? (
+                    <span key={`ellipsis-${idx}`} className="px-2 text-gray-400 text-sm">…</span>
+                  ) : (
+                    <button
+                      key={item}
+                      onClick={() => loadHistory(item)}
+                      disabled={histLoading}
+                      className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
+                        item === histPage
+                          ? 'bg-brand-600 text-white'
+                          : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {item + 1}
+                    </button>
+                  )
+                )
+              }
+            </div>
+
+            <button
+              onClick={() => loadHistory(histPage + 1)}
+              disabled={histPage >= history.totalPages - 1 || histLoading}
+              className="btn-secondary text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next →
             </button>
           </div>
         )}

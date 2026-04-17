@@ -101,7 +101,7 @@ public class MonitoringService {
         endpointRepository.save(endpoint);
 
         // Send alert only when transitioning from UP → DOWN (not on every check)
-        if (isNowDown && !wasDown) {
+        if (isNowDown ) {
             alertService.sendDownAlert(endpoint, result);
         }
 

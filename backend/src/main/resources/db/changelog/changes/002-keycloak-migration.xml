@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="002-keycloak-migration" author="apimonitor" dbms="oracle">
+        <comment>Add keycloak_id to users and make password_hash nullable</comment>
+
+        <!-- Add keycloak_id column for Keycloak subject (sub) claim -->
+        <addColumn tableName="users">
+            <column name="keycloak_id" type="VARCHAR2(36)"/>
+        </addColumn>
+
+        <addUniqueConstraint
+            tableName="users"
+            columnNames="keycloak_id"
+            constraintName="uq_users_keycloak_id"/>
+
+        <createIndex indexName="idx_users_keycloak_id" tableName="users">
+            <column name="keycloak_id"/>
+        </createIndex>
+
+        <!-- Make password_hash nullable — passwords are now managed by Keycloak -->
+        <dropNotNullConstraint
+            tableName="users"
+            columnName="password_hash"
+            columnDataType="VARCHAR2(255)"/>
+
+        <rollback>
+            <dropIndex tableName="users" indexName="idx_users_keycloak_id"/>
+            <dropUniqueConstraint tableName="users" constraintName="uq_users_keycloak_id"/>
+            <dropColumn tableName="users" columnName="keycloak_id"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

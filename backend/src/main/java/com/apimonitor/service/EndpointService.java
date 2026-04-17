@@ -11,6 +11,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -19,17 +23,16 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class EndpointService {
 
-    private static final int FREE_PLAN_LIMIT = 5;
+    private static final int FREE_PLAN_LIMIT = 15;
 
     private final ApiEndpointRepository endpointRepository;
     private final MonitoringService monitoringService;
 
     @Transactional(readOnly = true)
-    public List<EndpointResponse> listEndpoints(User user) {
-        return endpointRepository.findByUserOrderByCreatedAtDesc(user)
-            .stream()
-            .map(ep -> toResponse(ep, false))
-            .collect(Collectors.toList());
+    public Page<EndpointResponse> listEndpoints(User user, int page, int size) {
+        PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return endpointRepository.findByUser(user, pageable)
+            .map(ep -> toResponse(ep, false));
     }
 
     @Transactional(readOnly = true)
